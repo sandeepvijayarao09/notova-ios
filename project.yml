@@ -32,6 +32,8 @@ packages:
     path: Packages/Integrations
   DesignSystem:
     path: Packages/DesignSystem
+  Keychain:
+    path: Packages/Keychain
 
 targets:
   Notova:
@@ -51,6 +53,10 @@ targets:
           - UIInterfaceOrientationPortrait
         NSMicrophoneUsageDescription: "Notova needs microphone access to record audio for on-device transcription and summarization."
         NSSpeechRecognitionUsageDescription: "Notova uses speech recognition to transcribe your recordings entirely on your device."
+        CFBundleURLTypes:
+          - CFBundleURLName: com.notova.app.oauth
+            CFBundleURLSchemes:
+              - notova
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.notova.app
@@ -70,6 +76,7 @@ targets:
       - package: Persistence
       - package: Integrations
       - package: DesignSystem
+      - package: Keychain
 
   NotovaTests:
     type: bundle.unit-test
@@ -84,6 +91,8 @@ targets:
       - package: Transcription
       - package: AISummary
       - package: Persistence
+      - package: Integrations
+      - package: Keychain
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.notova.app.tests

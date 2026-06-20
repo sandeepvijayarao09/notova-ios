@@ -26,8 +26,15 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
-      - name: Run NotovaCore tests
-        run: cd Packages/NotovaCore && swift test
+      - name: Run Swift package tests
+        run: |
+          set -e
+          for pkg in NotovaCore Transcription AISummary ModelManagement Integrations Persistence Keychain DesignSystem; do
+            if [ -d "Packages/$pkg/Tests" ]; then
+              echo "== swift test: $pkg =="
+              ( cd "Packages/$pkg" && swift test )
+            fi
+          done
 
       - name: Build app (iOS Simulator)
         run: |

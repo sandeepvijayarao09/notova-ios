@@ -43,23 +43,32 @@ public actor ResolvingSummarizer: Summarizer {
 
     public func summarize(_ transcript: Transcript, style: String) async throws -> Summary {
         var candidates: [EngineResolution.Candidate] = []
-        var chosen: (any SummarizationEngine)?
-
+        var availableEngines: [any SummarizationEngine] = []
         for engine in engines {
             let available = await engine.isAvailable()
             candidates.append(.init(name: engine.engineName, available: available))
-            if available, chosen == nil {
-                chosen = engine
+            if available { availableEngines.append(engine) }
+        }
+
+        // Try each available engine in priority order, falling back to the next
+        // if one reports available but fails at runtime (e.g. a model that loads
+        // but errors during inference). The stub is always available and never
+        // throws, so summarization still succeeds.
+        var lastError: Error?
+        for engine in availableEngines {
+            do {
+                let summary = try await engine.summarize(transcript, style: style)
+                lastResolution = EngineResolution(activeEngineName: engine.engineName, candidates: candidates)
+                return summary
+            } catch {
+                lastError = error
             }
         }
 
-        guard let engine = chosen else {
-            // Should never happen: the stub is always available.
-            lastResolution = EngineResolution(activeEngineName: nil, candidates: candidates)
-            throw NotovaError.summarizationFailed("No summarization engine available")
-        }
-
-        lastResolution = EngineResolution(activeEngineName: engine.engineName, candidates: candidates)
-        return try await engine.summarize(transcript, style: style)
+        lastResolution = EngineResolution(activeEngineName: nil, candidates: candidates)
+        throw NotovaError.summarizationFailed(
+            lastError.map { "All summarization engines failed: \($0.localizedDescription)" }
+                ?? "No summarization engine available"
+        )
     }
 }

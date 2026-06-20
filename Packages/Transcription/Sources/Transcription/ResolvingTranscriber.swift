@@ -38,22 +38,33 @@ public actor ResolvingTranscriber: Transcriber {
 
     public func transcribe(audioURL: URL, recordingId: UUID) async throws -> Transcript {
         var candidates: [EngineResolution.Candidate] = []
-        var chosen: (any TranscriptionEngine)?
-
+        var availableEngines: [any TranscriptionEngine] = []
         for engine in engines {
             let available = await engine.isAvailable()
             candidates.append(.init(name: engine.engineName, available: available))
-            if available, chosen == nil {
-                chosen = engine
+            if available { availableEngines.append(engine) }
+        }
+
+        // Try each available engine in priority order. If one reports available
+        // but fails at runtime (e.g. Apple Speech with no on-device assets, an
+        // unsupported locale, or the simulator's speech service), fall back to
+        // the next instead of failing. The stub is always available and never
+        // throws, so transcription still succeeds.
+        var lastError: Error?
+        for engine in availableEngines {
+            do {
+                let transcript = try await engine.transcribe(audioURL: audioURL, recordingId: recordingId)
+                lastResolution = EngineResolution(activeEngineName: engine.engineName, candidates: candidates)
+                return transcript
+            } catch {
+                lastError = error
             }
         }
 
-        guard let engine = chosen else {
-            lastResolution = EngineResolution(activeEngineName: nil, candidates: candidates)
-            throw NotovaError.transcriptionFailed("No transcription engine available")
-        }
-
-        lastResolution = EngineResolution(activeEngineName: engine.engineName, candidates: candidates)
-        return try await engine.transcribe(audioURL: audioURL, recordingId: recordingId)
+        lastResolution = EngineResolution(activeEngineName: nil, candidates: candidates)
+        throw NotovaError.transcriptionFailed(
+            lastError.map { "All transcription engines failed: \($0.localizedDescription)" }
+                ?? "No transcription engine available"
+        )
     }
 }

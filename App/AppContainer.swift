@@ -6,6 +6,7 @@ import ModelManagement
 import AudioCapture
 import Persistence
 import Integrations
+import Keychain
 
 /// Composition root. Wires concrete implementations to the protocols defined in
 /// NotovaCore. The transcriber and summarizer are *resolvers* that pick the
@@ -27,6 +28,11 @@ final class AppContainer {
     let exporters: [any IntegrationExporter]
     /// Manages on-device model files (import / download / delete / detect).
     let modelStore: ModelStore
+    /// Secure storage for the backend access + refresh tokens.
+    let tokenStore: any TokenStore
+    /// Owns the authentication lifecycle (which screen the root shows + token
+    /// refresh). Observed by `RootView`.
+    let session: SessionStore
 
     /// True when launched by the UI test harness (`-uitest-seed`). Drives a
     /// deterministic, dialog-free recording path so XCUITests never block on the
@@ -56,8 +62,20 @@ final class AppContainer {
         self.summarizer = summarizerResolver
         self.pipeline = PipelineService(transcriber: transcriberResolver, summarizer: summarizerResolver)
         self.audioSource = isUITest ? UITestAudioSource() : AudioRecorder()
-        self.backend = NotovaBackendClient()
+        let backend = NotovaBackendClient()
+        self.backend = backend
         self.exporters = IntegrationRegistry.available()
+        // UI tests run with a unique keychain service so they never collide with
+        // a developer's real session, and start already "signed in" so the
+        // existing tab/notes tests see the main UI without a backend.
+        let tokenStore: any TokenStore = isUITest
+            ? InMemoryTokenStore(tokens: AuthTokens(accessToken: "uitest", refreshToken: "uitest"))
+            : KeychainTokenStore()
+        self.tokenStore = tokenStore
+        self.session = SessionStore(backend: backend, tokenStore: tokenStore)
+        if isUITest {
+            self.session.bootstrapSignedInForUITests(email: "uitest@notova.app")
+        }
         let grantImmediately: @Sendable () async -> Bool = { true }
         let askSystem: @Sendable () async -> Bool = { await MicrophonePermission.request() }
         self.requestPermission = isUITest ? grantImmediately : askSystem
@@ -93,8 +111,12 @@ final class AppContainer {
         self.transcriberResolver = transcriber as? ResolvingTranscriber
         self.pipeline = PipelineService(transcriber: transcriber, summarizer: summarizer)
         self.audioSource = UITestAudioSource()
-        self.backend = NotovaBackendClient()
+        let backend = NotovaBackendClient()
+        self.backend = backend
         self.exporters = exporters ?? IntegrationRegistry.available()
+        let tokenStore = InMemoryTokenStore()
+        self.tokenStore = tokenStore
+        self.session = SessionStore(backend: backend, tokenStore: tokenStore)
         let store = modelStore ?? ModelStore()
         self.modelStore = store
         self.requestPermission = { true }

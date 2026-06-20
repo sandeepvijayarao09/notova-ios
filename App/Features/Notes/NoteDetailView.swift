@@ -3,8 +3,11 @@ import NotovaCore
 import DesignSystem
 
 struct NoteDetailView: View {
+    @Environment(AppContainer.self) private var container
+    @Environment(SessionStore.self) private var session
     let note: Note
     let viewModel: NotesViewModel
+    @State private var showExport = false
 
     var body: some View {
         ScrollView {
@@ -64,6 +67,26 @@ struct NoteDetailView: View {
         .accessibilityIdentifier("noteDetail.scroll")
         .navigationTitle(note.recording.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showExport = true
+                } label: {
+                    Label("Export to…", systemImage: "square.and.arrow.up")
+                }
+                .disabled(note.summary == nil && note.transcript == nil)
+                .accessibilityIdentifier("noteDetail.export")
+            }
+        }
+        .sheet(isPresented: $showExport) {
+            ExportSheet(
+                viewModel: ExportViewModel(
+                    note: note,
+                    backend: container.backend,
+                    session: session
+                )
+            )
+        }
     }
 
     private func markdown(_ text: String) -> AttributedString {

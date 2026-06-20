@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(AppContainer.self) private var container
+    @Environment(SessionStore.self) private var session
     @State private var viewModel: SettingsViewModel?
     @State private var showImporter = false
     @State private var downloadURL = ""
@@ -48,25 +49,28 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         Section("Account") {
-            LabeledContent("Status", value: "Not signed in")
-            Button("Sign in") {}
-                .disabled(true)
+            LabeledContent("Signed in", value: accountEmail)
+                .accessibilityIdentifier("settings.account.email")
+            Button("Sign Out", role: .destructive) {
+                Task { await session.signOut() }
+            }
+            .accessibilityIdentifier("settings.signOut")
             Text("Accounts, billing, and metadata sync are handled by the Notova backend. AI runs fully on-device.")
                 .font(NotovaFont.caption)
                 .foregroundStyle(NotovaColor.textSecondary)
         }
     }
 
+    private var accountEmail: String {
+        if let email = session.userEmail, !email.isEmpty { return email }
+        return "Signed in"
+    }
+
     private var integrationsSection: some View {
         Section("Integrations") {
-            ForEach(container.exporters, id: \.provider) { exporter in
-                HStack {
-                    Text(exporter.provider.capitalized)
-                    Spacer()
-                    Button("Connect") {}
-                        .disabled(true)
-                }
-            }
+            Text("Manage connected providers in the Integrations tab.")
+                .font(NotovaFont.caption)
+                .foregroundStyle(NotovaColor.textSecondary)
         }
     }
 
@@ -181,6 +185,8 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
-        .environment(AppContainer())
+    let container = AppContainer()
+    return SettingsView()
+        .environment(container)
+        .environment(container.session)
 }

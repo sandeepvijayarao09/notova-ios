@@ -26,6 +26,11 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
+      - name: SwiftLint
+        run: |
+          brew list swiftlint >/dev/null 2>&1 || brew install swiftlint
+          swiftlint lint --strict
+
       - name: Run Swift package tests
         run: |
           set -e
@@ -36,10 +41,20 @@ jobs:
             fi
           done
 
-      - name: Build app (iOS Simulator)
+      - name: iOS app tests (unit + UI)
         run: |
-          xcodebuild \
+          set -e
+          # Pick the first available iPhone simulator on the runner (robust across Xcode versions).
+          DEVICE=$(xcrun simctl list devices available | grep -oE 'iPhone [0-9]+[^(]*' | head -1 | xargs)
+          echo "Using iOS Simulator: ${DEVICE:?no iPhone simulator available}"
+          xcodebuild test \
             -project Notova.xcodeproj \
             -scheme Notova \
-            -destination 'generic/platform=iOS Simulator' \
-            build
+            -destination "platform=iOS Simulator,name=$DEVICE"
+
+      - name: macOS app build + tests
+        run: |
+          xcodebuild test \
+            -project Notova.xcodeproj \
+            -scheme NotovaMac \
+            -destination 'platform=macOS'

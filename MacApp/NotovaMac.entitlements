@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- App Sandbox is required for the Mac App Store. -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <!-- Microphone capture for recording. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    <!-- Read audio files the user explicitly picks via the Import open panel. -->
+    <key>com.apple.security.files.user-selected.read-only</key>
+    <true/>
+    <!-- Outbound connections to the Notova backend (accounts/sync) and connected integrations. -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+</dict>
+</plist>

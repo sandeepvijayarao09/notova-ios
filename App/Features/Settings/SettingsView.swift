@@ -179,9 +179,31 @@ struct SettingsView: View {
     private var aboutSection: some View {
         Section("About") {
             LabeledContent("App", value: "Notova")
+            LabeledContent("Version", value: appVersion)
             LabeledContent("Bundle", value: "com.notova.app")
+            Link("Privacy Policy", destination: Self.privacyPolicyURL)
+                .accessibilityIdentifier("settings.about.privacy")
+            Link("Support", destination: Self.supportURL)
+                .accessibilityIdentifier("settings.about.support")
+            Text("Open source under the Apache 2.0 License. Audio, transcripts, and summaries stay on your device.")
+                .font(NotovaFont.caption)
+                .foregroundStyle(NotovaColor.textSecondary)
         }
     }
+
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = info?["CFBundleVersion"] as? String ?? "1"
+        return "\(short) (\(build))"
+    }
+
+    static let privacyPolicyURL = URL(
+        string: "https://github.com/sandeepvijayarao09/notova-ios/blob/main/docs/privacy-policy.md"
+    )!
+    static let supportURL = URL(
+        string: "https://github.com/sandeepvijayarao09/notova-ios/blob/main/SUPPORT.md"
+    )!
 }
 
 #Preview {

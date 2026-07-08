@@ -22,6 +22,29 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(session.phase, .signedOut)
     }
 
+    // MARK: - Guest (Continue without an account)
+
+    func testContinueWithoutAccountEntersAppAsGuest() async {
+        let session = makeSession()
+        await session.restore()
+        XCTAssertEqual(session.phase, .signedOut)
+        XCTAssertFalse(session.hasAccount)
+
+        session.continueWithoutAccount()
+
+        // Guest lands in the app (signedIn phase) but holds no account token.
+        XCTAssertEqual(session.phase, .signedIn(email: ""))
+        XCTAssertFalse(session.hasAccount)
+        XCTAssertNil(session.userEmail)
+    }
+
+    func testRestoredAccountReportsHasAccount() async {
+        let store = InMemoryTokenStore(tokens: AuthTokens(accessToken: "a", refreshToken: "r"))
+        let session = makeSession(store: store)
+        await session.restore()
+        XCTAssertTrue(session.hasAccount)
+    }
+
     func testRestoreWithValidTokenSignsInAndAppliesToken() async {
         let backend = FakeBackend()
         let store = InMemoryTokenStore(tokens: AuthTokens(accessToken: "stored-acc", refreshToken: "stored-ref"))

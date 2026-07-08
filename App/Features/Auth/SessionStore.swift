@@ -87,6 +87,18 @@ final class SessionStore {
         phase = .signedIn(email: email)
     }
 
+    /// True when a real account session exists (a token pair is present). A guest session
+    /// ("Continue without an account") has no tokens, so account-only features stay gated.
+    var hasAccount: Bool { tokens != nil }
+
+    /// Enters the app without an account. Recording, transcription and summarization all run
+    /// on-device, so Notova is fully usable offline; account-only features (sync, integrations)
+    /// remain gated behind `hasAccount` until the user signs in.
+    func continueWithoutAccount() {
+        userEmail = nil
+        phase = .signedIn(email: "")
+    }
+
     func signOut() async {
         try? tokenStore.clear()
         tokens = nil

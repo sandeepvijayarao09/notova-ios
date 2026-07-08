@@ -32,7 +32,9 @@ call sites:
 ```bash
 make generate                 # xcodegen generate  (creates Notova.xcodeproj)
 make build                    # xcodebuild for the iOS Simulator
+make build-mac                # xcodebuild the native macOS app (NotovaMac)
 make test                     # swift test in Packages/NotovaCore
+make test-mac                 # xcodebuild test for the macOS app (NotovaMacTests)
 make lint                     # swiftlint (if installed)
 make format                   # swiftformat (if installed)
 ```
@@ -52,6 +54,15 @@ cd Packages/NotovaCore && swift test
 > data are **gitignored**. The source of truth is `project.yml`. Regenerate with
 > `xcodegen generate` after editing it. Microphone and speech-recognition usage
 > descriptions live in `project.yml` under `targets.Notova.info.properties`.
+
+### macOS app
+
+Notova also ships a **native macOS app** (`NotovaMac` target, sources in `MacApp/`).
+It is SwiftUI for the Mac (a `NavigationSplitView` with Record / Notes / Settings)
+and **reuses the same `NotovaCore` package** — models, `PipelineService`, and the
+on-device `Transcriber`/`Summarizer` seams — as iOS. Only the platform plumbing is
+Mac-specific: `MacAudioRecorder` (AVAudioEngine capture + file import) and a small
+JSON `NoteStore`. Build it with `make build-mac` and test it with `make test-mac`.
 
 ---
 

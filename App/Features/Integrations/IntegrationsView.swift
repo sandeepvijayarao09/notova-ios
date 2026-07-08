@@ -11,7 +11,9 @@ struct IntegrationsView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if let viewModel {
+                if !session.hasAccount {
+                    guestPrompt
+                } else if let viewModel {
                     content(viewModel)
                 } else {
                     ProgressView()
@@ -26,12 +28,37 @@ struct IntegrationsView: View {
                         authorize: { try await WebAuthSession.authorize(url: $0) }
                     )
                 }
-                await viewModel?.refresh()
+                // A guest has no account token; calling the backend here would 401 and sign them
+                // out. Integrations require an account — guestPrompt is shown instead.
+                if session.hasAccount {
+                    await viewModel?.refresh()
+                }
             }
         }
         .onOpenURL { url in
             Task { await viewModel?.handleCallback(url: url) }
         }
+    }
+
+    private var guestPrompt: some View {
+        VStack(spacing: NotovaSpacing.md) {
+            Image(systemName: "link")
+                .font(.system(size: 44))
+                .foregroundStyle(NotovaColor.textSecondary)
+            Text("Sign in to connect integrations")
+                .font(NotovaFont.title)
+                .multilineTextAlignment(.center)
+            Text(
+                "Exporting notes to apps like Notion and Todoist needs a Notova account. "
+                    + "Your recordings, transcripts and summaries always stay on-device."
+            )
+                .font(NotovaFont.caption)
+                .foregroundStyle(NotovaColor.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(NotovaSpacing.lg)
+        .frame(maxWidth: 420)
+        .accessibilityIdentifier("integrations.guestPrompt")
     }
 
     @ViewBuilder

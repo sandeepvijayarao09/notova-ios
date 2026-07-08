@@ -89,6 +89,16 @@ struct SignInView: View {
             .buttonStyle(.bordered)
             .disabled(!viewModel.canSubmit)
             .accessibilityIdentifier("signIn.createAccount")
+
+            Button {
+                session.continueWithoutAccount()
+            } label: {
+                Text("Continue without an account")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .disabled(viewModel.isBusy)
+            .accessibilityIdentifier("signIn.continueWithoutAccount")
         }
     }
 

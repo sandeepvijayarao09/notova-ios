@@ -1,4 +1,6 @@
+import AISummary
 import NotovaCore
+import Transcription
 import XCTest
 @testable import NotovaMac
 
@@ -54,12 +56,17 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.notes.isEmpty)
     }
 
-    /// Regression: Settings used to hardcode the stub engine names. The default (production) init
-    /// now retains the real resolver chain, and `refreshEngineNames()` surfaces the engine that
-    /// would actually run — so the names move off the "Resolving…" placeholder to a real chain
-    /// entry (never nil, because the built-in engine is always the last available fallback).
+    /// Regression: Settings used to hardcode the stub engine names. The resolvers passed to
+    /// `AppModel` are now retained, and `refreshEngineNames()` surfaces the first *available*
+    /// engine each chain would use. Injected fake engines keep this deterministic and off any real
+    /// on-device availability probing (SFSpeechRecognizer / Foundation Models can block on CI).
     func testActiveEngineNamesComeFromResolver() async {
+        let transcriber = ResolvingTranscriber(engines: [FakeTranscriptionEngine(name: "Fake ASR"), StubTranscriber()])
+        let summarizer = ResolvingSummarizer(engines: [FakeSummarizationEngine(name: "Fake LLM"), StubSummarizer()])
         let model = AppModel(
+            pipeline: PipelineService(transcriber: transcriber, summarizer: summarizer),
+            transcriberResolver: transcriber,
+            summarizerResolver: summarizer,
             audio: FakeAudioSource(),
             store: NoteStore(inMemory: true),
             requestPermission: { true }
@@ -70,10 +77,10 @@ final class AppModelTests: XCTestCase {
 
         await model.refreshEngineNames()
 
-        XCTAssertNotEqual(model.activeTranscriberName, "Resolving…")
-        XCTAssertNotEqual(model.activeSummarizerName, "Resolving…")
-        XCTAssertFalse(model.activeTranscriberName.isEmpty)
-        XCTAssertFalse(model.activeSummarizerName.isEmpty)
+        // The first available engine in each chain surfaces (proves it reads the resolver, not a
+        // hardcoded stub).
+        XCTAssertEqual(model.activeTranscriberName, "Fake ASR")
+        XCTAssertEqual(model.activeSummarizerName, "Fake LLM")
     }
 
     private func makeModel(permissionGranted: Bool = true) -> AppModel {
@@ -96,5 +103,25 @@ private struct FakeAudioSource: AudioSource {
 
     func loadFile(at url: URL) async throws -> AudioCaptureResult {
         AudioCaptureResult(fileURL: url, durationSec: 12, source: .file)
+    }
+}
+
+/// Always-available fake engines for the resolver test — report availability instantly (no real
+/// SFSpeechRecognizer / Foundation Models probing) and are never asked to do actual work.
+private struct FakeTranscriptionEngine: TranscriptionEngine {
+    let name: String
+    var engineName: String { name }
+    func isAvailable() async -> Bool { true }
+    func transcribe(audioURL: URL, recordingId: UUID) async throws -> Transcript {
+        throw CancellationError()
+    }
+}
+
+private struct FakeSummarizationEngine: SummarizationEngine {
+    let name: String
+    var engineName: String { name }
+    func isAvailable() async -> Bool { true }
+    func summarize(_ transcript: Transcript, style: String) async throws -> Summary {
+        throw CancellationError()
     }
 }

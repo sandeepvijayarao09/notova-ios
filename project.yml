@@ -164,6 +164,9 @@ targets:
     dependencies:
       - target: NotovaMac
       - package: NotovaCore
+      # Resolver types (ResolvingTranscriber / ResolvingSummarizer) for deterministic engine tests.
+      - package: Transcription
+      - package: AISummary
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.notova.mac.tests

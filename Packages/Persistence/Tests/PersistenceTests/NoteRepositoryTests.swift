@@ -6,15 +6,15 @@ import NotovaCore
 @MainActor
 final class NoteRepositoryTests: XCTestCase {
 
-    private var repo: NoteRepository!
-
-    override func setUpWithError() throws {
-        repo = try NoteRepository(inMemory: true)
-    }
-
-    override func tearDown() {
-        repo = nil
-    }
+    // `NoteRepository` is @MainActor (SwiftData's ModelContext isn't Sendable). Building it in a
+    // nonisolated setUp/tearDown override trips Swift 6 isolation checks (and the exact diagnostic
+    // differs across SDKs), so create it lazily instead: XCTest makes a fresh test-case instance
+    // per method, and this @MainActor class's test methods run on the main actor, so each test
+    // gets its own repository initialized in the right isolation context.
+    private lazy var repo: NoteRepository = {
+        // swiftlint:disable:next force_try
+        try! NoteRepository(inMemory: true)
+    }()
 
     // MARK: - Fixtures
 

@@ -11,12 +11,20 @@ and billing. **AI compute never leaves the device.**
 
 ## Status
 
-This is a working scaffold. Transcription and summarization are **stub
-implementations behind protocols** so the real models drop in without touching
-call sites:
+**1.0.0 — working on-device pipeline** (iPhone + native macOS). Record → transcribe →
+summarize → save runs entirely on the device, with no account required.
 
-- **Transcription** → `StubTranscriber` today; `WhisperTranscriber` later.
-- **Summarization** → `StubSummarizer` today; `GemmaSummarizer` (Gemma 3n E4B) later.
+| Stage | Engine chain (highest priority first) |
+| --- | --- |
+| **Transcription** | **Apple Speech** (`SFSpeechRecognizer`, `requiresOnDeviceRecognition`, iOS 17+) → built-in fallback |
+| **Summarization** | **Local Gemma via MLX** (when a Gemma model is installed and the build sets `NOTOVA_ENABLE_MLX=1`) → **Apple Foundation Models** (iOS 26+ with Apple Intelligence) → built-in fallback |
+
+A runtime resolver (`ResolvingTranscriber` / `ResolvingSummarizer`, both Swift
+`actor`s) probes each engine's availability at call time, falls through if an
+engine fails mid-inference, and records which engine handled the request so
+Settings can show the active engine. The built-in fallback never throws, so the
+pipeline always completes offline. Summaries are Markdown with key points and
+parsed action items.
 
 ---
 
@@ -87,8 +95,9 @@ App (SwiftUI, MVVM)
 `PipelineService` (an `actor` in NotovaCore) composes a `Transcriber` and a
 `Summarizer` to turn an audio file URL into a finished `Note`
 (`Recording` + `Transcript` + `Summary`). The concrete transcriber/summarizer are
-injected, so swapping stubs for Whisper/Gemma is a one-line change in
-`AppContainer` plus the new type in the relevant package.
+injected: `AppContainer` (iOS) and `AppModel` (macOS) wire in the resolving
+transcriber and summarizer from `TranscriptionService.makeResolving()` and
+`SummaryService.makeResolving(store:)`.
 
 ### Module map
 
@@ -96,8 +105,8 @@ injected, so swapping stubs for Whisper/Gemma is a one-line change in
 | --------------- | ------------------------------------------------------------------------------ | ---------- |
 | `NotovaCore`    | Domain models, all protocols, stub impls, `PipelineService`. No UI/platform deps. Has tests. | —          |
 | `AudioCapture`  | `AudioRecorder : AudioSource` — AVFoundation capture (mic / Bluetooth route via `AVAudioSession`) + file import. | NotovaCore |
-| `Transcription` | `TranscriptionService.makeDefault()` → `StubTranscriber`. Whisper goes here.   | NotovaCore |
-| `AISummary`     | `SummaryService.makeDefault()` → `StubSummarizer`. Gemma goes here.            | NotovaCore |
+| `Transcription` | `AppleSpeechTranscriber` (on-device) + `ResolvingTranscriber`; `TranscriptionService.makeResolving()`. Has tests. | NotovaCore |
+| `AISummary`     | `LocalGemmaSummarizer` (MLX), `AppleFoundationModelsSummarizer` + `ResolvingSummarizer`; `SummaryService.makeResolving(store:)`. Has tests. | NotovaCore, ModelManagement |
 | `Persistence`   | SwiftData `@Model` entities for Recording + Summary; `NoteRepository`.         | NotovaCore |
 | `Integrations`  | `IntegrationExporter` stub impls + `NotovaBackendClient` (`/v1` REST).          | NotovaCore |
 | `DesignSystem`  | Color / typography / spacing tokens + reusable SwiftUI components.             | —          |
@@ -128,20 +137,23 @@ See `Protocols.swift`. Stubs in `Stubs.swift`.
 
 ---
 
-## Where Whisper / Gemma plug in
+## On-device AI engines
 
-Both are isolated behind protocols and a factory:
+Each engine conforms to `TranscriptionEngine` or `SummarizationEngine`
+(`isAvailable()` + the work method) and is listed in priority order in
+`TranscriptionService.defaultEngines()` / `SummaryService.defaultEngines(store:)`.
 
-- **Whisper (transcription):** add `WhisperTranscriber: Transcriber` in
-  `Packages/Transcription/`, then return it from `TranscriptionService.makeDefault()`.
-  A commented stub already marks the spot. Map model output to the
-  `Transcript` / `TranscriptSegment` domain types.
-- **Gemma 3n E4B (summarization):** add `GemmaSummarizer: Summarizer` in
-  `Packages/AISummary/`, then return it from `SummaryService.makeDefault()`.
-  Produce `Summary.contentMarkdown` + `actionItems`.
+- **Apple Speech** — on-device `SFSpeechRecognizer`; segments map to
+  `Transcript` / `TranscriptSegment` with timing. Unavailable without speech
+  authorization or on-device support for the locale.
+- **Local Gemma (MLX)** — runs a Gemma model from the app's models directory
+  (`ModelStore`, capability `.localGemmaMLX`). MLX is Metal-only and fetched from
+  the network, so it is opt-in: set `NOTOVA_ENABLE_MLX=1` before generating the
+  project. Without it the package still builds and the resolver skips the engine.
+- **Apple Foundation Models** — Apple Intelligence's on-device model on iOS 26+.
 
-No call sites in the app change — `AppContainer` consumes the factories and
-`PipelineService` consumes the protocols.
+Adding another engine (e.g. Whisper) is one new type plus one line in the
+engine list; no call sites change.
 
 ---
 
@@ -149,8 +161,10 @@ No call sites in the app change — `AppContainer` consumes the factories and
 
 `Packages/NotovaCore/Tests/NotovaCoreTests` covers:
 
-- `PipelineService` end-to-end with stubs (ready note, action-item extraction,
+- `PipelineService` end-to-end (ready note, action-item extraction,
   failure propagation)
+- `Packages/Transcription` and `Packages/AISummary` test each engine's
+  availability gating, output mapping and the resolvers' fallback order
 - Codable round-trips for `Recording`, `Summary`, `Transcript`
 
 Run with `swift test` (or `make test`). An app-level smoke test lives in

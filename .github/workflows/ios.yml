@@ -4,63 +4,83 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  lint:
+    name: SwiftLint
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode.app
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Generate project
-        run: xcodegen generate
-
-      - name: SwiftLint
+      - uses: actions/checkout@v5
+      - name: SwiftLint (strict)
         run: |
-          brew list swiftlint >/dev/null 2>&1 || brew install swiftlint
+          command -v swiftlint >/dev/null || brew install swiftlint
           swiftlint lint --strict
 
-      - name: Run Swift package tests
+  packages:
+    name: Swift packages
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache SwiftPM builds
+        uses: actions/cache@v4
+        with:
+          path: Packages/*/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('Packages/*/Package.swift', 'Packages/*/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: swift test (all 9 packages)
         run: |
           set -e
-          for pkg in NotovaCore Transcription AISummary ModelManagement Integrations Persistence Keychain DesignSystem; do
-            if [ -d "Packages/$pkg/Tests" ]; then
-              echo "== swift test: $pkg =="
-              ( cd "Packages/$pkg" && swift test )
-            fi
+          for pkg in NotovaCore Transcription AISummary ModelManagement Integrations Persistence Keychain DesignSystem AudioCapture; do
+            echo "::group::swift test $pkg"
+            ( cd "Packages/$pkg" && swift test )
+            echo "::endgroup::"
           done
 
-      - name: iOS app unit tests
+  ios-app:
+    name: iOS app unit tests
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Generate project
+        run: brew install xcodegen && xcodegen generate
+      - name: Unit tests (NotovaTests)
         run: |
-          set -e
-          # Pick the first available iPhone simulator on the runner (robust across Xcode versions).
+          set -o pipefail
           DEVICE=$(xcrun simctl list devices available | grep -oE 'iPhone [0-9]+[^(]*' | head -1 | xargs)
           echo "Using iOS Simulator: ${DEVICE:?no iPhone simulator available}"
-          # Unit tests only. The NotovaUITests (XCUITest) target is excluded from CI because
-          # UI automation on the hosted simulator intermittently hangs; run it locally on an idle
-          # machine (`make test` / Xcode). Logic is covered by the eight SwiftPM package suites
-          # above plus NotovaTests here.
+          # UI tests (NotovaUITests) stay local: UI automation on hosted
+          # simulators is unreliable. Diagnostics collection is off because it
+          # can stall xcodebuild for 10 minutes after the tests finish.
           xcodebuild test \
             -project Notova.xcodeproj \
             -scheme Notova \
             -destination "platform=iOS Simulator,name=$DEVICE" \
-            -only-testing:NotovaTests
+            -only-testing:NotovaTests \
+            -collect-test-diagnostics never \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Case|Executed|error:|\*\*"
 
-      - name: macOS app build + tests
+  macos-app:
+    name: macOS app build + tests
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Generate project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build and test NotovaMac
         run: |
+          set -o pipefail
           xcodebuild test \
             -project Notova.xcodeproj \
             -scheme NotovaMac \
-            -destination 'platform=macOS'
+            -destination 'platform=macOS' \
+            -collect-test-diagnostics never \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Case|Executed|error:|\*\*"

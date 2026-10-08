@@ -6,7 +6,7 @@ final class PipelineServiceTests: XCTestCase {
     // MARK: - Success path with stubs
 
     func testProcessProducesReadyNoteWithStubs() async throws {
-        let pipeline = PipelineService()
+        let pipeline = PipelineService(transcriber: StubTranscriber())
         let recording = Recording(title: "Test", source: .mic)
         let dummyURL = URL(fileURLWithPath: "/tmp/notova-test.m4a")
 
@@ -29,7 +29,7 @@ final class PipelineServiceTests: XCTestCase {
     }
 
     func testProcessDefaultStyleIsConcise() async throws {
-        let pipeline = PipelineService()
+        let pipeline = PipelineService(transcriber: StubTranscriber())
         let note = try await pipeline.process(
             recording: Recording(title: "x"),
             audioURL: URL(fileURLWithPath: "/tmp/x.m4a")
@@ -38,7 +38,7 @@ final class PipelineServiceTests: XCTestCase {
     }
 
     func testActionItemExtractionFindsActionVerbs() async throws {
-        let pipeline = PipelineService()
+        let pipeline = PipelineService(transcriber: StubTranscriber())
         let note = try await pipeline.process(
             recording: Recording(title: "Actions", source: .file),
             audioURL: URL(fileURLWithPath: "/tmp/x.m4a")
@@ -174,7 +174,7 @@ final class PipelineServiceTests: XCTestCase {
     // MARK: - Concurrency / isolation
 
     func testConcurrentPipelinesViaAsyncLetPreserveIdentity() async throws {
-        let pipeline = PipelineService()
+        let pipeline = PipelineService(transcriber: StubTranscriber())
         let r1 = Recording(title: "one", source: .mic)
         let r2 = Recording(title: "two", source: .file)
         let url = URL(fileURLWithPath: "/tmp/x.m4a")
@@ -192,7 +192,7 @@ final class PipelineServiceTests: XCTestCase {
     }
 
     func testManyConcurrentPipelinesViaTaskGroupIsolated() async throws {
-        let pipeline = PipelineService()
+        let pipeline = PipelineService(transcriber: StubTranscriber())
         let recordings = (0..<50).map { Recording(title: "rec-\($0)", source: .mic) }
         let url = URL(fileURLWithPath: "/tmp/x.m4a")
 

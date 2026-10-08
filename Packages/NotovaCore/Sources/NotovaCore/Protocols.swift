@@ -30,16 +30,16 @@ public protocol AudioSource: Sendable {
 
 // MARK: - Transcription
 
-/// Converts an audio file into a transcript. Stubbed today; future
-/// implementation: `WhisperTranscriber` (whisper.cpp / Core ML).
+/// Converts an audio file into a transcript. The shipping implementation is
+/// Apple Speech (on-device); see the Transcription package.
 public protocol Transcriber: Sendable {
     func transcribe(audioURL: URL, recordingId: UUID) async throws -> Transcript
 }
 
 // MARK: - Summarization
 
-/// Produces a markdown summary + action items from a transcript. Stubbed today;
-/// future implementation: `GemmaSummarizer` (Gemma 3n E4B, on-device).
+/// Produces a markdown summary + action items from a transcript. See the
+/// AISummary package for the on-device engines.
 public protocol Summarizer: Sendable {
     func summarize(_ transcript: Transcript, style: String) async throws -> Summary
 }
@@ -55,8 +55,25 @@ public protocol IntegrationExporter: Sendable {
 
 public enum NotovaError: Error, Sendable, Equatable {
     case audioCaptureFailed(String)
+    /// No transcription engine can run on this device right now (speech
+    /// permission denied, locale not supported on-device, …). The app must
+    /// say so instead of inventing a transcript.
+    case transcriptionUnavailable(String)
     case transcriptionFailed(String)
     case summarizationFailed(String)
     case exportFailed(String)
     case unsupportedFile(String)
+}
+
+extension NotovaError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .audioCaptureFailed(let reason): return "Recording failed: \(reason)"
+        case .transcriptionUnavailable(let reason): return "Transcription unavailable: \(reason)"
+        case .transcriptionFailed(let reason): return "Transcription failed: \(reason)"
+        case .summarizationFailed(let reason): return "Summary failed: \(reason)"
+        case .exportFailed(let reason): return "Export failed: \(reason)"
+        case .unsupportedFile(let reason): return "Unsupported file: \(reason)"
+        }
+    }
 }

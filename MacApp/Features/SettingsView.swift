@@ -2,8 +2,7 @@ import SwiftUI
 
 /// Settings / about. Surfaces the privacy posture and which on-device engines are actually active.
 /// The names come from the live resolver chain on `AppModel` (Apple Speech / Foundation Models /
-/// Gemma, degrading to the built-in sample engine), so this screen reflects what really runs —
-/// Whisper / Gemma 3n drop in behind the same `NotovaCore` protocols without touching this view.
+/// Gemma, then a basic extractive summary), so this screen reflects what really runs.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
 
@@ -12,8 +11,8 @@ struct SettingsView: View {
             Section("On-device AI") {
                 LabeledContent("Transcription", value: model.activeTranscriberName)
                 LabeledContent("Summarization", value: model.activeSummarizerName)
-                Text("Notova picks the first available on-device engine. If none is ready it uses "
-                    + "the built-in sample engine.")
+                Text("Notova picks the first available on-device engine. Without an AI model, summaries are "
+                    + "basic extracts of the transcript. Without Apple Speech, transcription is reported as unavailable.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

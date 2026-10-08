@@ -98,7 +98,9 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("settings.engines.transcriber")
             }
-            Text("Notova picks the first available on-device engine. If none is ready it uses the built-in sample engine.")
+            Text("Notova picks the first available on-device engine. Without an AI model, summaries are "
+                 + "basic extracts of the transcript. Without Apple Speech, Notova saves the audio and "
+                 + "says transcription is unavailable.")
                 .font(NotovaFont.caption)
                 .foregroundStyle(NotovaColor.textSecondary)
         }

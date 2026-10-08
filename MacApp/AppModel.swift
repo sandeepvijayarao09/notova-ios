@@ -88,10 +88,10 @@ final class AppModel {
     /// engine that would actually handle a request. Cheap; safe to call on launch/appear.
     func refreshEngineNames() async {
         if let transcriberResolver {
-            activeTranscriberName = await transcriberResolver.previewResolution().activeEngineName ?? "None"
+            activeTranscriberName = await transcriberResolver.previewResolution().activeEngineName ?? "Unavailable"
         }
         if let summarizerResolver {
-            activeSummarizerName = await summarizerResolver.previewResolution().activeEngineName ?? "None"
+            activeSummarizerName = await summarizerResolver.previewResolution().activeEngineName ?? "Unavailable"
         }
     }
 
@@ -167,6 +167,14 @@ final class AppModel {
             notes = store.load()
             recordState = .done(note.recording.title)
             statusMessage = "Saved “\(note.recording.title)”."
+        } catch NotovaError.transcriptionUnavailable(let reason) {
+            // Keep the audio, but never invent a transcript or summary.
+            var failed = recording
+            failed.status = .failed
+            store.save(Note(recording: failed))
+            notes = store.load()
+            recordState = .failed("Transcription unavailable: \(reason)")
+            statusMessage = "Saved the audio only. No transcript was made."
         } catch {
             recordState = .failed(error.localizedDescription)
             statusMessage = "Processing failed."

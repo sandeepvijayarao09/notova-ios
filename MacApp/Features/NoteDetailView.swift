@@ -31,6 +31,10 @@ struct NoteDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                if note.transcript == nil && note.summary == nil {
+                    Text("No transcript. On-device transcription was unavailable when this was recorded.")
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)

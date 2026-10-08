@@ -61,7 +61,13 @@ final class StubSummarizerTests: XCTestCase {
     // MARK: - Output shape & determinism
 
     func testModelNameStable() {
-        XCTAssertEqual(StubSummarizer.modelName, "stub-summarizer-v1")
+        XCTAssertEqual(StubSummarizer.modelName, "basic-extractive-v1")
+    }
+
+    func testSummaryIsLabelledAsNotAI() async throws {
+        let summary = try await summarize("Please send the report.")
+        XCTAssertTrue(summary.contentMarkdown.contains("no on-device AI model was available"))
+        XCTAssertFalse(summary.contentMarkdown.localizedCaseInsensitiveContains("stub"))
     }
 
     func testOutputShapeAndModelField() async throws {
@@ -237,35 +243,5 @@ final class StubSummarizerTests: XCTestCase {
         XCTAssertTrue(StubSummarizer.actionVerbs.contains("submit"))
         XCTAssertFalse(StubSummarizer.actionVerbs.contains("the"))
         XCTAssertEqual(StubSummarizer.actionVerbs.count, 17)
-    }
-}
-
-final class StubIntegrationExporterTests: XCTestCase {
-    func testReturnsDoneStatusAndShape() async throws {
-        let id = UUID()
-        let exporter = StubIntegrationExporter(provider: "myprovider")
-        let export = try await exporter.export(
-            recordingId: id,
-            summary: Summary(recordingId: id, style: "s", contentMarkdown: "c", actionItems: [], model: "m"),
-            transcript: Transcript(recordingId: id, language: "en", fullText: "x", segments: [])
-        )
-        XCTAssertEqual(export.recordingId, id)
-        XCTAssertEqual(export.provider, "myprovider")
-        XCTAssertEqual(export.status, .done)
-        XCTAssertNotNil(export.externalId)
-        XCTAssertEqual(export.url, "https://example.com/myprovider/\(id.uuidString)")
-    }
-
-    func testDefaultProviderIsStub() {
-        XCTAssertEqual(StubIntegrationExporter().provider, "stub")
-    }
-
-    func testExternalIdIsAValidUUID() async throws {
-        let export = try await StubIntegrationExporter().export(
-            recordingId: UUID(),
-            summary: Summary(recordingId: UUID(), style: "s", contentMarkdown: "c", actionItems: [], model: "m"),
-            transcript: Transcript(recordingId: UUID(), language: "en", fullText: "x", segments: [])
-        )
-        XCTAssertNotNil(UUID(uuidString: try XCTUnwrap(export.externalId)))
     }
 }

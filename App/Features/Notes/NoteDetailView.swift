@@ -58,7 +58,9 @@ struct NoteDetailView: View {
                 }
 
                 if note.summary == nil && note.transcript == nil {
-                    Text("This note has no content yet.")
+                    Text(note.recording.status == .failed
+                         ? "No transcript. On-device transcription was unavailable when this was recorded."
+                         : "This note has no content yet.")
                         .foregroundStyle(NotovaColor.textSecondary)
                 }
             }

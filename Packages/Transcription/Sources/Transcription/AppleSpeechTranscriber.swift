@@ -49,7 +49,7 @@ public protocol SpeechRecognitionBackend: Sendable {
 /// On-device transcriber backed by Apple's `Speech` framework (`SFSpeechRecognizer`
 /// with `requiresOnDeviceRecognition = true`). Works on iOS 17+. Availability
 /// depends on speech-recognition authorization and on-device support for the
-/// locale; where unavailable the resolver falls through to the stub.
+/// locale; where unavailable the resolver reports transcription as unavailable.
 public struct AppleSpeechTranscriber: TranscriptionEngine {
     public let engineName = "Apple Speech (on-device)"
     private let backend: any SpeechRecognitionBackend

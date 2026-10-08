@@ -11,7 +11,9 @@ import Keychain
 /// Composition root. Wires concrete implementations to the protocols defined in
 /// NotovaCore. The transcriber and summarizer are *resolvers* that pick the
 /// first available on-device engine at call time (Apple Speech / Foundation
-/// Models / local Gemma), degrading gracefully to the built-in stubs.
+/// Models / local Gemma). Summaries fall back to a basic extractive summary;
+/// transcription has no fake fallback and reports itself unavailable instead.
+/// Export goes through `NotovaBackendClient` (see ExportViewModel).
 @Observable
 @MainActor
 final class AppContainer {
@@ -25,7 +27,6 @@ final class AppContainer {
     let audioSource: any AudioSource
     let repository: NoteRepository
     let backend: NotovaBackendClient
-    let exporters: [any IntegrationExporter]
     /// Manages on-device model files (import / download / delete / detect).
     let modelStore: ModelStore
     /// Secure storage for the backend access + refresh tokens.
@@ -64,7 +65,6 @@ final class AppContainer {
         self.audioSource = isUITest ? UITestAudioSource() : AudioRecorder()
         let backend = NotovaBackendClient()
         self.backend = backend
-        self.exporters = IntegrationRegistry.available()
         // UI tests run with a unique keychain service so they never collide with
         // a developer's real session, and start already "signed in" so the
         // existing tab/notes tests see the main UI without a backend.
@@ -101,8 +101,7 @@ final class AppContainer {
         transcriber: any Transcriber,
         summarizer: any Summarizer,
         modelStore: ModelStore? = nil,
-        repository: NoteRepository? = nil,
-        exporters: [any IntegrationExporter]? = nil
+        repository: NoteRepository? = nil
     ) {
         self.isUITest = false
         self.transcriber = transcriber
@@ -113,7 +112,6 @@ final class AppContainer {
         self.audioSource = UITestAudioSource()
         let backend = NotovaBackendClient()
         self.backend = backend
-        self.exporters = exporters ?? IntegrationRegistry.available()
         let tokenStore = InMemoryTokenStore()
         self.tokenStore = tokenStore
         self.session = SessionStore(backend: backend, tokenStore: tokenStore)

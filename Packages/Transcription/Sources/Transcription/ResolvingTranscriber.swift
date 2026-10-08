@@ -4,8 +4,9 @@ import NotovaCore
 /// A `Transcriber` that picks the first AVAILABLE `TranscriptionEngine` from an
 /// ordered chain at call time, and records which engine handled the request.
 ///
-/// Default chain: Apple Speech (on-device) → built-in stub. The stub is always
-/// available, so transcription never fails for lack of an engine.
+/// Default chain: Apple Speech (on-device). There is deliberately no "always
+/// available" fallback: if no engine can run, `transcribe` throws
+/// `NotovaError.transcriptionUnavailable` and the UI says so.
 public actor ResolvingTranscriber: Transcriber {
     private let engines: [any TranscriptionEngine]
     private var lastResolution: EngineResolution
@@ -17,6 +18,10 @@ public actor ResolvingTranscriber: Transcriber {
             candidates: engines.map { .init(name: $0.engineName, available: false) }
         )
     }
+
+    /// Shown when no engine in the chain can run.
+    public static let unavailableReason =
+        "allow Speech Recognition for Notova in Settings, and use a language your device supports on-device."
 
     /// The result of the most recent resolution. Read by Settings.
     public var resolution: EngineResolution { lastResolution }
@@ -48,8 +53,7 @@ public actor ResolvingTranscriber: Transcriber {
         // Try each available engine in priority order. If one reports available
         // but fails at runtime (e.g. Apple Speech with no on-device assets, an
         // unsupported locale, or the simulator's speech service), fall back to
-        // the next instead of failing. The stub is always available and never
-        // throws, so transcription still succeeds.
+        // the next instead of failing.
         var lastError: Error?
         for engine in availableEngines {
             do {
@@ -62,9 +66,8 @@ public actor ResolvingTranscriber: Transcriber {
         }
 
         lastResolution = EngineResolution(activeEngineName: nil, candidates: candidates)
-        throw NotovaError.transcriptionFailed(
-            lastError.map { "All transcription engines failed: \($0.localizedDescription)" }
-                ?? "No transcription engine available"
-        )
+        if let notovaError = lastError as? NotovaError { throw notovaError }
+        if let lastError { throw NotovaError.transcriptionFailed(lastError.localizedDescription) }
+        throw NotovaError.transcriptionUnavailable(Self.unavailableReason)
     }
 }

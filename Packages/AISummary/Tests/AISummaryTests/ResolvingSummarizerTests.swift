@@ -84,7 +84,7 @@ final class ResolvingSummarizerTests: XCTestCase {
         let store = ModelStore(directory: dir)
         let engines = SummaryService.defaultEngines(store: store)
         XCTAssertEqual(engines.map(\.engineName),
-                       ["Local Gemma (MLX)", "Apple Foundation Models", "Built-in sample summarizer"])
+                       ["Local Gemma (MLX)", "Apple Foundation Models", "Basic summary (no AI model)"])
     }
 
     func testResolvingFallsBackToStubWhenNoModelOrAppleAI() async throws {

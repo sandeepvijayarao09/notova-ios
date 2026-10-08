@@ -36,6 +36,12 @@ private actor FakeAudioSource: AudioSource {
     }
 }
 
+private struct UnavailableTranscriber: Transcriber {
+    func transcribe(audioURL: URL, recordingId: UUID) async throws -> Transcript {
+        throw NotovaError.transcriptionUnavailable("speech permission denied")
+    }
+}
+
 @MainActor
 final class RecordViewModelTests: XCTestCase {
 
@@ -46,7 +52,7 @@ final class RecordViewModelTests: XCTestCase {
         let repo = try NoteRepository(inMemory: true)
         let vm = RecordViewModel(
             audioSource: FakeAudioSource(mode: mode),
-            pipeline: PipelineService(),
+            pipeline: PipelineService(transcriber: StubTranscriber()),
             repository: repo,
             requestPermission: { permissionGranted }
         )
@@ -109,6 +115,26 @@ final class RecordViewModelTests: XCTestCase {
         let notes = try repo.allNotes()
         XCTAssertEqual(notes.count, 1)
         XCTAssertEqual(notes.first?.recording.source, .file)
+    }
+
+    func testUnavailableTranscriptionSavesAudioOnlyAndSaysSo() async throws {
+        let repo = try NoteRepository(inMemory: true)
+        let vm = RecordViewModel(
+            audioSource: FakeAudioSource(),
+            pipeline: PipelineService(transcriber: UnavailableTranscriber()),
+            repository: repo,
+            requestPermission: { true }
+        )
+        await vm.importFile(at: URL(fileURLWithPath: "/tmp/meeting.m4a"))
+        guard case let .failed(message) = vm.state else {
+            return XCTFail("expected .failed, got \(vm.state)")
+        }
+        XCTAssertTrue(message.hasPrefix("Transcription unavailable"))
+        let notes = try repo.allNotes()
+        XCTAssertEqual(notes.count, 1, "the audio is kept")
+        XCTAssertEqual(notes.first?.recording.status, .failed)
+        XCTAssertNil(notes.first?.transcript, "no transcript may be invented")
+        XCTAssertNil(notes.first?.summary, "no summary may be invented")
     }
 
     func testImportFailureSetsFailedState() async throws {

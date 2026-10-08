@@ -105,6 +105,13 @@ final class RecordViewModel {
             try repository.save(note)
             state = .done(note.recording.title)
             statusMessage = "Saved \"\(note.recording.title)\"."
+        } catch NotovaError.transcriptionUnavailable(let reason) {
+            // Keep the audio, but never invent a transcript or summary.
+            var failed = recording
+            failed.status = .failed
+            try? repository.save(Note(recording: failed))
+            state = .failed("Transcription unavailable: \(reason)")
+            statusMessage = "Saved the audio only. No transcript was made."
         } catch {
             state = .failed(error.localizedDescription)
             statusMessage = "Processing failed."

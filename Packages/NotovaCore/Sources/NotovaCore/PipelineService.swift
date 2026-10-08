@@ -1,13 +1,12 @@
 import Foundation
 
 /// Composes a `Transcriber` and a `Summarizer` to turn an audio file into a
-/// finished `Note` entirely on-device. Swap the injected stubs for Whisper /
-/// Gemma implementations without touching call sites.
+/// finished `Note` entirely on-device.
 public actor PipelineService {
     private let transcriber: Transcriber
     private let summarizer: Summarizer
 
-    public init(transcriber: Transcriber = StubTranscriber(),
+    public init(transcriber: Transcriber,
                 summarizer: Summarizer = StubSummarizer()) {
         self.transcriber = transcriber
         self.summarizer = summarizer

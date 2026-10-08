@@ -85,7 +85,7 @@ final class AppModelTests: XCTestCase {
 
     private func makeModel(permissionGranted: Bool = true) -> AppModel {
         AppModel(
-            pipeline: PipelineService(),
+            pipeline: PipelineService(transcriber: StubTranscriber()),
             audio: FakeAudioSource(),
             store: NoteStore(inMemory: true),
             requestPermission: { permissionGranted }

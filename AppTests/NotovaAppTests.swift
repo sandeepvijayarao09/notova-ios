@@ -10,12 +10,6 @@ final class NotovaAppTests: XCTestCase {
     // MARK: - AppContainer composition root
 
     @MainActor
-    func testContainerBuildsWithStubDependencies() {
-        let container = AppContainer()
-        XCTAssertEqual(container.exporters.isEmpty, false)
-    }
-
-    @MainActor
     func testContainerWiresResolvers() {
         let container = AppContainer()
         XCTAssertNotNil(container.summarizerResolver, "production wiring should use a ResolvingSummarizer")
@@ -33,13 +27,15 @@ final class NotovaAppTests: XCTestCase {
 
     @MainActor
     func testResolversReportEngineChain() async {
+        // Reads the configured chain without probing availability: probing
+        // Apple Speech asks for speech authorization, which blocks a headless
+        // simulator on the system prompt.
         let container = AppContainer()
-        let summarizerResolution = await container.summarizerResolver?.previewResolution()
+        let summarizerResolution = await container.summarizerResolver?.resolution
         XCTAssertEqual(summarizerResolution?.candidates.map(\.name),
-                       ["Local Gemma (MLX)", "Apple Foundation Models", "Built-in sample summarizer"])
-        let transcriberResolution = await container.transcriberResolver?.previewResolution()
-        XCTAssertEqual(transcriberResolution?.candidates.map(\.name),
-                       ["Apple Speech (on-device)", "Built-in sample transcriber"])
+                       ["Local Gemma (MLX)", "Apple Foundation Models", "Basic summary (no AI model)"])
+        let transcriberResolution = await container.transcriberResolver?.resolution
+        XCTAssertEqual(transcriberResolution?.candidates.map(\.name), ["Apple Speech (on-device)"])
     }
 
     @MainActor
@@ -58,20 +54,19 @@ final class NotovaAppTests: XCTestCase {
     }
 
     @MainActor
-    func testContainerExportersAreNotionAndEmail() {
-        let providers = AppContainer().exporters.map(\.provider)
-        XCTAssertEqual(Set(providers), ["notion", "email"])
-    }
-
-    @MainActor
-    func testContainerWiresPipelineWithStubs() async throws {
-        let container = AppContainer()
-        let note = try await container.pipeline.process(
-            recording: Recording(title: "Container", source: .mic),
-            audioURL: URL(fileURLWithPath: "/tmp/x.m4a")
-        )
-        XCTAssertEqual(note.recording.status, .ready)
-        XCTAssertNotNil(note.summary)
+    func testNoTranscriptionEngineIsReportedNotFaked() async {
+        let transcriber = ResolvingTranscriber(engines: [UnavailableEngine()])
+        let container = AppContainer(transcriber: transcriber, summarizer: FakeSummarizer())
+        do {
+            _ = try await container.pipeline.process(
+                recording: Recording(title: "Container", source: .mic),
+                audioURL: URL(fileURLWithPath: "/tmp/x.m4a")
+            )
+            XCTFail("expected transcription to be reported unavailable")
+        } catch {
+            XCTAssertEqual(error as? NotovaError,
+                           .transcriptionUnavailable(ResolvingTranscriber.unavailableReason))
+        }
     }
 
     @MainActor
@@ -87,7 +82,7 @@ final class NotovaAppTests: XCTestCase {
     // MARK: - Pipeline end-to-end through the app module
 
     func testPipelineProducesNoteViaApp() async throws {
-        let pipeline = PipelineService()
+        let pipeline = PipelineService(transcriber: StubTranscriber())
         let note = try await pipeline.process(
             recording: Recording(title: "AppTest", source: .file),
             audioURL: URL(fileURLWithPath: "/tmp/x.m4a")
@@ -101,6 +96,15 @@ final class NotovaAppTests: XCTestCase {
 private struct FakeTranscriber: Transcriber {
     func transcribe(audioURL: URL, recordingId: UUID) async throws -> Transcript {
         Transcript(recordingId: recordingId, language: "en", fullText: "fake transcript", segments: [])
+    }
+}
+
+private struct UnavailableEngine: TranscriptionEngine {
+    let engineName = "Unavailable"
+    func isAvailable() async -> Bool { false }
+    func transcribe(audioURL: URL, recordingId: UUID) async throws -> Transcript {
+        XCTFail("an unavailable engine must not be asked to transcribe")
+        throw NotovaError.transcriptionUnavailable("test")
     }
 }
 

@@ -56,7 +56,8 @@ final class ResolvingTranscriberTests: XCTestCase {
             _ = try await resolver.transcribe(audioURL: url, recordingId: UUID())
             XCTFail("expected failure")
         } catch {
-            XCTAssertEqual(error as? NotovaError, .transcriptionFailed("No transcription engine available"))
+            XCTAssertEqual(error as? NotovaError,
+                           .transcriptionUnavailable(ResolvingTranscriber.unavailableReason))
         }
     }
 
@@ -86,8 +87,9 @@ final class ResolvingTranscriberTests: XCTestCase {
 
     // MARK: - Default chain
 
-    func testDefaultChainShapeIsAppleSpeechThenStub() {
+    func testDefaultChainIsRealEnginesOnly() {
+        // No placeholder engine: if Apple Speech can't run, the user is told so.
         let engines = TranscriptionService.defaultEngines()
-        XCTAssertEqual(engines.map(\.engineName), ["Apple Speech (on-device)", "Built-in sample transcriber"])
+        XCTAssertEqual(engines.map(\.engineName), ["Apple Speech (on-device)"])
     }
 }

@@ -2,18 +2,20 @@ import Foundation
 import NotovaCore
 import ModelManagement
 
-/// Factory for the on-device summarizer. `makeDefault()` returns the always-on
-/// stub (kept for existing call sites/tests); `makeResolving(store:)` returns a
+/// Factory for the on-device summarizer. `makeDefault()` returns the basic
+/// extractive summarizer; `makeResolving(store:)` returns a
 /// `ResolvingSummarizer` that prefers Local Gemma (MLX) → Apple Foundation
-/// Models → stub, choosing the first available engine at call time.
+/// Models → basic extractive summary, choosing the first available engine at
+/// call time. The basic summary only quotes the transcript and is labelled as
+/// "no AI model", so the fallback never invents content.
 public enum SummaryService {
-    /// The always-available baseline summarizer.
+    /// The always-available basic extractive summarizer.
     public static func makeDefault() -> any Summarizer {
         StubSummarizer()
     }
 
-    /// The full engine chain, highest priority first. The stub is last so
-    /// summarization always succeeds.
+    /// The full engine chain, highest priority first. The basic summarizer is
+    /// last so a transcript always gets at least an extractive summary.
     public static func defaultEngines(store: ModelStore) -> [any SummarizationEngine] {
         [
             LocalGemmaSummarizer(store: store),

@@ -63,7 +63,7 @@ final class AppContainer {
         self.summarizer = summarizerResolver
         self.pipeline = PipelineService(transcriber: transcriberResolver, summarizer: summarizerResolver)
         self.audioSource = isUITest ? UITestAudioSource() : AudioRecorder()
-        let backend = NotovaBackendClient()
+        let backend = NotovaBackendClient(baseURL: Self.backendURL())
         self.backend = backend
         // UI tests run with a unique keychain service so they never collide with
         // a developer's real session, and start already "signed in" so the
@@ -110,7 +110,7 @@ final class AppContainer {
         self.transcriberResolver = transcriber as? ResolvingTranscriber
         self.pipeline = PipelineService(transcriber: transcriber, summarizer: summarizer)
         self.audioSource = UITestAudioSource()
-        let backend = NotovaBackendClient()
+        let backend = NotovaBackendClient(baseURL: Self.backendURL())
         self.backend = backend
         let tokenStore = InMemoryTokenStore()
         self.tokenStore = tokenStore
@@ -121,6 +121,17 @@ final class AppContainer {
         self.repository = repository ?? ((try? NoteRepository(inMemory: true)) ?? {
             fatalError("Unable to initialize in-memory NoteRepository")
         }())
+    }
+
+    /// The notova-backend base URL, from the `NotovaBackendURL` Info.plist key
+    /// (build setting `NOTOVA_BACKEND_URL`). Defaults to a local `npm run dev`
+    /// server, because there is no public deployment.
+    nonisolated static func backendURL(bundle: Bundle = .main) -> URL {
+        let raw = (bundle.object(forInfoDictionaryKey: "NotovaBackendURL") as? String) ?? ""
+        if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true, url.host != nil {
+            return url
+        }
+        return URL(string: "http://localhost:8787")!
     }
 
     /// A deterministic note used to seed UI tests (never used in production).

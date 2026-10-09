@@ -79,6 +79,14 @@ final class NotovaAppTests: XCTestCase {
         XCTAssertEqual(note.summary?.actionItems.count, 1)
     }
 
+    func testBackendURLComesFromInfoPlist() {
+        // The app target's Info.plist carries NOTOVA_BACKEND_URL (local dev server by default).
+        let url = AppContainer.backendURL()
+        XCTAssertEqual(url.scheme?.hasPrefix("http"), true)
+        XCTAssertNotNil(url.host)
+        XCTAssertNotEqual(url.host, "api.notova.app", "there is no public deployment to point at")
+    }
+
     // MARK: - Pipeline end-to-end through the app module
 
     func testPipelineProducesNoteViaApp() async throws {

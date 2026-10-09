@@ -49,8 +49,8 @@ struct IntegrationsView: View {
                 .font(NotovaFont.title)
                 .multilineTextAlignment(.center)
             Text(
-                "Exporting notes to apps like Notion and Todoist needs a Notova account. "
-                    + "Your recordings, transcripts and summaries always stay on-device."
+                "Exporting a note to Notion needs a Notova account. Recording and AI run on-device; "
+                    + "only notes you choose to export are sent, through the backend, to that app."
             )
                 .font(NotovaFont.caption)
                 .foregroundStyle(NotovaColor.textSecondary)

@@ -49,9 +49,9 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         Section("Account") {
-            LabeledContent("Signed in", value: accountEmail)
+            LabeledContent(session.hasAccount ? "Signed in" : "Account", value: accountEmail)
                 .accessibilityIdentifier("settings.account.email")
-            Button("Sign Out", role: .destructive) {
+            Button(session.hasAccount ? "Sign Out" : "Sign In", role: session.hasAccount ? .destructive : nil) {
                 Task { await session.signOut() }
             }
             .accessibilityIdentifier("settings.signOut")
@@ -63,7 +63,7 @@ struct SettingsView: View {
 
     private var accountEmail: String {
         if let email = session.userEmail, !email.isEmpty { return email }
-        return "Signed in"
+        return session.hasAccount ? "Signed in" : "Not signed in (local only)"
     }
 
     private var integrationsSection: some View {

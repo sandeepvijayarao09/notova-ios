@@ -1,4 +1,4 @@
-.PHONY: generate build build-mac test test-mac lint format clean
+.PHONY: generate build build-mac test test-all test-mac lint format clean
 
 PROJECT := Notova.xcodeproj
 SCHEME := Notova
@@ -25,6 +25,15 @@ test-mac: generate
 # Run NotovaCore package tests (the authoritative unit tests).
 test:
 	cd Packages/NotovaCore && swift test
+
+# Everything CI runs: all nine packages, the iOS unit tests and the macOS tests.
+PACKAGES := NotovaCore Transcription AISummary ModelManagement Integrations Persistence Keychain DesignSystem AudioCapture
+test-all: generate
+	set -e; for p in $(PACKAGES); do (cd Packages/$$p && swift test); done
+	xcodebuild test -project Notova.xcodeproj -scheme Notova \
+		-destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+		-only-testing:NotovaTests -collect-test-diagnostics never
+	xcodebuild test -project Notova.xcodeproj -scheme NotovaMac -destination 'platform=macOS'
 
 # Lint Swift sources (requires swiftlint on PATH).
 lint:

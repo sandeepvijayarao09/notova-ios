@@ -56,7 +56,7 @@ final class SettingsViewModel {
     }
 
     var activeTranscriberName: String {
-        transcriberResolution.candidates.first(where: \.available)?.name ?? "None"
+        transcriberResolution.candidates.first(where: \.available)?.name ?? "Unavailable"
     }
 
     // MARK: - Import

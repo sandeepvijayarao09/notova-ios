@@ -1,177 +1,126 @@
-# notova-ios
+# Notova for iPhone and Mac
 
-**Notova** for iOS — on-device AI voice capture & notes (SwiftUI). Record from any
-mic, Bluetooth input, or imported audio file; transcribe and summarize **fully
-on-device**; export to your apps.
+[![iOS CI](https://github.com/sandeepvijayarao09/notova-ios/actions/workflows/ios.yml/badge.svg)](https://github.com/sandeepvijayarao09/notova-ios/actions/workflows/ios.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-The backend exists only for accounts, OAuth integration brokering, metadata sync,
-and billing. **AI compute never leaves the device.**
+Record a meeting or voice memo, and Notova transcribes and summarizes it on the device.
+No audio and no AI calls leave the phone.
 
----
+<p>
+  <img src="docs/screenshots/ios_record.png" width="250" alt="Record screen">
+  <img src="docs/screenshots/ios_settings.png" width="250" alt="Settings showing which on-device engines are active">
+  <img src="docs/screenshots/ios_unavailable.png" width="250" alt="Record screen after a recording on a device where speech recognition is unavailable">
+</p>
 
-## Status
+<sub>Captured on the iOS 26.5 Simulator. The simulator has no on-device speech model, so the
+third screen shows what Notova does then: it keeps the audio and says transcription is
+unavailable, instead of inventing a transcript.</sub>
 
-**1.0.0 — working on-device pipeline** (iPhone + native macOS). Record → transcribe →
-summarize → save runs entirely on the device, with no account required.
+Part of Notova:
+[notova-android](https://github.com/sandeepvijayarao09/notova-android) ·
+[notova-backend](https://github.com/sandeepvijayarao09/notova-backend) ·
+[roadmap](ROADMAP.md)
 
-| Stage | Engine chain (highest priority first) |
-| --- | --- |
-| **Transcription** | **Apple Speech** (`SFSpeechRecognizer`, `requiresOnDeviceRecognition`, iOS 17+) → built-in fallback |
-| **Summarization** | **Local Gemma via MLX** (when a Gemma model is installed and the build sets `NOTOVA_ENABLE_MLX=1`) → **Apple Foundation Models** (iOS 26+ with Apple Intelligence) → built-in fallback |
+## Highlights
 
-A runtime resolver (`ResolvingTranscriber` / `ResolvingSummarizer`, both Swift
-`actor`s) probes each engine's availability at call time, falls through if an
-engine fails mid-inference, and records which engine handled the request so
-Settings can show the active engine. The built-in fallback never throws, so the
-pipeline always completes offline. Summaries are Markdown with key points and
-parsed action items.
+- **On-device pipeline.** Apple Speech (`requiresOnDeviceRecognition`) for transcripts;
+  Apple Foundation Models (iOS 26+ with Apple Intelligence) or a local Gemma model via MLX
+  for summaries and action items.
+- **Honest fallbacks.** Engines are tried in priority order at call time by two Swift
+  actors (`ResolvingTranscriber`, `ResolvingSummarizer`). With no AI model, the summary is a
+  basic extract labelled as such. With no speech engine, the note is saved as audio only.
+- **Settings shows what actually ran**, engine by engine.
+- **Native macOS app** (`NotovaMac`) on the same packages.
+- **Nine local Swift packages** (NotovaCore, AudioCapture, Transcription, AISummary,
+  ModelManagement, Persistence, Integrations, Keychain, DesignSystem), SwiftData storage,
+  Swift 6 strict concurrency, XcodeGen project.
+- **298 XCTest cases**: 233 across the packages, 60 in the iOS app target, 5 in the Mac app.
+  CI runs all of them plus SwiftLint (strict) on every push.
 
----
+## Build and run
 
-## Requirements
-
-- Xcode 26.x, Swift 6 (Swift Concurrency, strict)
-- iOS deployment target 17.0
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) on `PATH` (the `.xcodeproj` is
-  **generated**, not committed)
-
-## Generate, build, test
-
-```bash
-make generate                 # xcodegen generate  (creates Notova.xcodeproj)
-make build                    # xcodebuild for the iOS Simulator
-make build-mac                # xcodebuild the native macOS app (NotovaMac)
-make test                     # swift test in Packages/NotovaCore
-make test-mac                 # xcodebuild test for the macOS app (NotovaMacTests)
-make lint                     # swiftlint (if installed)
-make format                   # swiftformat (if installed)
-```
-
-Equivalent raw commands:
+Requirements: Xcode 26 or newer, [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`). The Xcode project is generated from `project.yml` and is not
+committed.
 
 ```bash
+git clone https://github.com/sandeepvijayarao09/notova-ios.git
+cd notova-ios
 xcodegen generate
-
-xcodebuild -project Notova.xcodeproj -scheme Notova \
-  -destination 'generic/platform=iOS Simulator' build
-
-cd Packages/NotovaCore && swift test
+open Notova.xcodeproj        # run the "Notova" scheme on a simulator or iPhone
 ```
 
-> The generated `Notova.xcodeproj`, the generated `App/Info.plist`, and Xcode user
-> data are **gitignored**. The source of truth is `project.yml`. Regenerate with
-> `xcodegen generate` after editing it. Microphone and speech-recognition usage
-> descriptions live in `project.yml` under `targets.Notova.info.properties`.
+Tap **Continue without an account** to use Notova locally. On a real iPhone, allow
+Microphone and Speech Recognition when asked; transcription needs a language your device
+supports on-device.
 
-### macOS app
+### Optional: local Gemma summaries (MLX)
 
-Notova also ships a **native macOS app** (`NotovaMac` target, sources in `MacApp/`).
-It is SwiftUI for the Mac (a `NavigationSplitView` with Record / Notes / Settings)
-and **reuses the same `NotovaCore` package** — models, `PipelineService`, and the
-on-device `Transcriber`/`Summarizer` seams — as iOS. Only the platform plumbing is
-Mac-specific: `MacAudioRecorder` (AVAudioEngine capture + file import) and a small
-JSON `NoteStore`. Build it with `make build-mac` and test it with `make test-mac`.
+MLX is Metal-only and pulled from the network, so it is off by default and not built in
+CI. The AISummary manifest adds it only when `NOTOVA_ENABLE_MLX=1` is set in the
+environment of the process that resolves packages (for example
+`NOTOVA_ENABLE_MLX=1 xcodebuild -scheme Notova ...`). Then import a Gemma MLX model under
+Settings → On-device models. Without it, summaries come from Apple Foundation Models
+(where available) or the basic extract.
 
----
+### Optional: accounts and export
 
-## Architecture
-
-MVVM with `@Observable` view models. UI is SwiftUI. Domain logic and the
-on-device pipeline live in **local Swift packages** under `Packages/`, so the app
-layer depends only on protocols and is trivially testable.
-
-```
-App (SwiftUI, MVVM)
-  └─ AppContainer  (composition root: wires concrete impls to protocols)
-        ├─ PipelineService = Transcriber + Summarizer        (NotovaCore)
-        ├─ AudioRecorder : AudioSource                       (AudioCapture)
-        ├─ NoteRepository (SwiftData)                        (Persistence)
-        ├─ NotovaBackendClient + exporters                   (Integrations)
-        └─ DesignSystem tokens & components
-```
-
-### Pipeline
-
-`PipelineService` (an `actor` in NotovaCore) composes a `Transcriber` and a
-`Summarizer` to turn an audio file URL into a finished `Note`
-(`Recording` + `Transcript` + `Summary`). The concrete transcriber/summarizer are
-injected: `AppContainer` (iOS) and `AppModel` (macOS) wire in the resolving
-transcriber and summarizer from `TranscriptionService.makeResolving()` and
-`SummaryService.makeResolving(store:)`.
-
-### Module map
-
-| Module          | Responsibility                                                                 | Depends on |
-| --------------- | ------------------------------------------------------------------------------ | ---------- |
-| `NotovaCore`    | Domain models, all protocols, stub impls, `PipelineService`. No UI/platform deps. Has tests. | —          |
-| `AudioCapture`  | `AudioRecorder : AudioSource` — AVFoundation capture (mic / Bluetooth route via `AVAudioSession`) + file import. | NotovaCore |
-| `Transcription` | `AppleSpeechTranscriber` (on-device) + `ResolvingTranscriber`; `TranscriptionService.makeResolving()`. Has tests. | NotovaCore |
-| `AISummary`     | `LocalGemmaSummarizer` (MLX), `AppleFoundationModelsSummarizer` + `ResolvingSummarizer`; `SummaryService.makeResolving(store:)`. Has tests. | NotovaCore, ModelManagement |
-| `Persistence`   | SwiftData `@Model` entities for Recording + Summary; `NoteRepository`.         | NotovaCore |
-| `Integrations`  | `IntegrationExporter` stub impls + `NotovaBackendClient` (`/v1` REST).          | NotovaCore |
-| `DesignSystem`  | Color / typography / spacing tokens + reusable SwiftUI components.             | —          |
-
-### App layer
-
-```
-App/
-  NotovaApp.swift            @main; builds AppContainer, injects via .environment
-  AppContainer.swift         composition root
-  RootView.swift             TabView: Record / Notes / Settings
-  Features/
-    Record/                  record from mic, import via .fileImporter, run pipeline, save
-    Notes/                   list saved notes; detail = summary markdown + action items + transcript
-    Settings/                account + integrations placeholders
-```
-
----
-
-## Domain model (in `NotovaCore`)
-
-`Recording`, `TranscriptSegment`, `Transcript`, `ActionItem`, `Summary`,
-`IntegrationExport`, plus a composite `Note`. See
-`Packages/NotovaCore/Sources/NotovaCore/Models.swift`.
-
-Protocols: `AudioSource`, `Transcriber`, `Summarizer`, `IntegrationExporter`.
-See `Protocols.swift`. Stubs in `Stubs.swift`.
-
----
-
-## On-device AI engines
-
-Each engine conforms to `TranscriptionEngine` or `SummarizationEngine`
-(`isAvailable()` + the work method) and is listed in priority order in
-`TranscriptionService.defaultEngines()` / `SummaryService.defaultEngines(store:)`.
-
-- **Apple Speech** — on-device `SFSpeechRecognizer`; segments map to
-  `Transcript` / `TranscriptSegment` with timing. Unavailable without speech
-  authorization or on-device support for the locale.
-- **Local Gemma (MLX)** — runs a Gemma model from the app's models directory
-  (`ModelStore`, capability `.localGemmaMLX`). MLX is Metal-only and fetched from
-  the network, so it is opt-in: set `NOTOVA_ENABLE_MLX=1` before generating the
-  project. Without it the package still builds and the resolver skips the engine.
-- **Apple Foundation Models** — Apple Intelligence's on-device model on iOS 26+.
-
-Adding another engine (e.g. Whisper) is one new type plus one line in the
-engine list; no call sites change.
-
----
+Sign-in, sync and export go through [notova-backend](https://github.com/sandeepvijayarao09/notova-backend).
+There is no public deployment. Run it locally (`npm run dev`, port 8787); the app's
+default `NOTOVA_BACKEND_URL` is `http://localhost:8787`. Point a build at another
+deployment with `xcodebuild ... NOTOVA_BACKEND_URL=https://your-host`. Of the export
+providers, only Notion is implemented server-side.
 
 ## Tests
 
-`Packages/NotovaCore/Tests/NotovaCoreTests` covers:
+```bash
+make test-all                 # every package + iOS unit tests + macOS tests
+# or individually:
+(cd Packages/NotovaCore && swift test)
+xcodebuild test -project Notova.xcodeproj -scheme Notova \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:NotovaTests -collect-test-diagnostics never
+xcodebuild test -project Notova.xcodeproj -scheme NotovaMac -destination 'platform=macOS'
+```
 
-- `PipelineService` end-to-end (ready note, action-item extraction,
-  failure propagation)
-- `Packages/Transcription` and `Packages/AISummary` test each engine's
-  availability gating, output mapping and the resolvers' fallback order
-- Codable round-trips for `Recording`, `Summary`, `Transcript`
+The XCUITest target (`NotovaUITests`) runs locally only; UI automation on hosted CI
+simulators is unreliable.
 
-Run with `swift test` (or `make test`). An app-level smoke test lives in
-`AppTests/` and runs via the `NotovaTests` target in Xcode.
+## Architecture
 
----
+MVVM with `@Observable` view models. The app layer depends only on protocols from
+NotovaCore; `AppContainer` (iOS) and `AppModel` (macOS) wire in concrete engines.
+
+```
+App (SwiftUI)
+  └─ AppContainer
+        ├─ PipelineService(Transcriber, Summarizer)      NotovaCore
+        │     ├─ ResolvingTranscriber: Apple Speech       Transcription
+        │     └─ ResolvingSummarizer: MLX Gemma →
+        │          Foundation Models → basic extract      AISummary
+        ├─ AudioRecorder (mic, Bluetooth, file import)    AudioCapture
+        ├─ NoteRepository (SwiftData)                     Persistence
+        ├─ NotovaBackendClient (/v1 REST)                 Integrations
+        └─ KeychainTokenStore                             Keychain
+```
+
+| Package | Responsibility |
+| --- | --- |
+| `NotovaCore` | Domain models, protocols, `PipelineService`, errors, the basic extractive summarizer |
+| `AudioCapture` | AVFoundation capture (mic / Bluetooth route) and file import |
+| `Transcription` | `AppleSpeechTranscriber`, `ResolvingTranscriber` |
+| `AISummary` | `LocalGemmaSummarizer` (MLX), `AppleFoundationModelsSummarizer`, `ResolvingSummarizer` |
+| `ModelManagement` | Model files on disk: import, download from a URL, detect, delete |
+| `Persistence` | SwiftData entities and `NoteRepository` |
+| `Integrations` | `NotovaBackendClient` for auth, integrations, export, sync, billing |
+| `Keychain` | Token storage |
+| `DesignSystem` | Color, type and spacing tokens and shared components |
+
+## Status
+
+v1.0.0 is a source release. There is no App Store or TestFlight build yet; see
+[RELEASE.md](RELEASE.md) and [LAUNCH.md](LAUNCH.md) for what submission needs.
 
 ## License
 
-Apache-2.0. See `LICENSE` and `NOTICE`.
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

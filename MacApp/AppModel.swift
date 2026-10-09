@@ -174,7 +174,7 @@ final class AppModel {
             store.save(Note(recording: failed))
             notes = store.load()
             recordState = .failed("Transcription unavailable: \(reason)")
-            statusMessage = "Saved the audio only. No transcript was made."
+            statusMessage = "Audio saved without a transcript. To transcribe, \(reason)"
         } catch {
             recordState = .failed(error.localizedDescription)
             statusMessage = "Processing failed."

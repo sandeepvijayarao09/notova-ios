@@ -111,7 +111,7 @@ final class RecordViewModel {
             failed.status = .failed
             try? repository.save(Note(recording: failed))
             state = .failed("Transcription unavailable: \(reason)")
-            statusMessage = "Saved the audio only. No transcript was made."
+            statusMessage = "Audio saved without a transcript. To transcribe, \(reason)"
         } catch {
             state = .failed(error.localizedDescription)
             statusMessage = "Processing failed."

@@ -14,10 +14,10 @@ Shared fields are listed once; platform-specific description blocks follow.
 - **Secondary category:** Utilities
 - **Price:** Free
 - **Bundle IDs:** iOS `com.notova.app` · macOS `com.notova.mac`
-- **Copyright:** © 2026 `<FILL IN: legal entity name>`
-- **Support URL:** `<FILL IN: support page URL>` (host `SUPPORT.md`)
-- **Marketing URL (optional):** `<FILL IN: marketing site URL>`
-- **Privacy Policy URL:** `<FILL IN: privacy policy URL>` (host `docs/privacy-policy.md`)
+- **Copyright:** © 2026 Sandeep Vijayarao (change if publishing under a company)
+- **Support URL:** https://github.com/sandeepvijayarao09/notova-ios/blob/main/SUPPORT.md
+- **Marketing URL (optional):** none yet; https://github.com/sandeepvijayarao09/notova-ios works until there is a site
+- **Privacy Policy URL:** https://github.com/sandeepvijayarao09/notova-ios/blob/main/docs/privacy-policy.md
 
 ### Promotional text (≤170, updatable without review)
 

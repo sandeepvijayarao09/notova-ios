@@ -3,6 +3,14 @@
 [![iOS CI](https://github.com/sandeepvijayarao09/notova-ios/actions/workflows/ios.yml/badge.svg)](https://github.com/sandeepvijayarao09/notova-ios/actions/workflows/ios.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
+## In 30 seconds
+- **What it is:** An iPhone and Mac app that records a meeting or voice memo and turns it into a transcript and summary.
+- **Why it matters:** Transcription and summarizing happen on the device, so no audio and no AI calls leave the phone.
+- **Key result:** 298 XCTest tests run in CI on every push. With no speech engine it keeps the audio and says so rather than inventing a transcript. Status: v1.0.0 source release, no App Store build yet.
+- **What I did:** Solo project: built the iOS and Mac apps on nine Swift packages.
+- **Built with:** Swift 6, SwiftUI, Apple Speech, Apple Foundation Models, MLX (optional local Gemma), SwiftData, XcodeGen.
+- **Try it:** See the screenshots below, or run `xcodegen generate` and open `Notova.xcodeproj` in Xcode 26+.
+
 Record a meeting or voice memo, and Notova transcribes and summarizes it on the device.
 No audio and no AI calls leave the phone.
 

@@ -26,7 +26,7 @@ unavailable, instead of inventing a transcript.</sub>
 
 Part of Notova:
 [notova-android](https://github.com/sandeepvijayarao09/notova-android) ·
-[notova-backend](https://github.com/sandeepvijayarao09/notova-backend) ·
+backend (accounts, OAuth token broker, sync): private repository, available on request ·
 [roadmap](ROADMAP.md)
 
 ## Highlights
@@ -73,7 +73,7 @@ Settings → On-device models. Without it, summaries come from Apple Foundation 
 
 ### Optional: accounts and export
 
-Sign-in, sync and export go through [notova-backend](https://github.com/sandeepvijayarao09/notova-backend).
+Sign-in, sync and export go through the backend (accounts, OAuth token broker, sync), which lives in a private repository and is available on request.
 There is no public deployment. Run it locally (`npm run dev`, port 8787); the app's
 default `NOTOVA_BACKEND_URL` is `http://localhost:8787`. Point a build at another
 deployment with `xcodebuild ... NOTOVA_BACKEND_URL=https://your-host`. Of the export

@@ -5,10 +5,10 @@ summarize it on the device, and optionally export the result through a small
 backend that handles only accounts, OAuth brokering, metadata sync and billing.
 AI never runs on the server.
 
-This file is shared by the three repos:
+This file is shared by the three Notova repos:
 [notova-ios](https://github.com/sandeepvijayarao09/notova-ios) (iPhone + Mac),
 [notova-android](https://github.com/sandeepvijayarao09/notova-android) and
-[notova-backend](https://github.com/sandeepvijayarao09/notova-backend).
+notova-backend, the backend (accounts, OAuth token broker, sync), which lives in a private repository and is available on request.
 
 ## Where things stand (October 2026)
 
